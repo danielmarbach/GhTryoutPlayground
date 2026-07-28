@@ -1,0 +1,32 @@
+name: CI
+
+on:
+
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  wsl-container-test:
+    runs-on: windows-2025
+
+    steps:
+      - name: Inspect WSL container support
+        shell: pwsh
+        run: |
+          wsl --version
+          wsl --status
+
+          Get-Command wslc -ErrorAction SilentlyContinue
+
+          if (-not (Get-Command wslc -ErrorAction SilentlyContinue)) {
+            throw "wslc.exe is not available in this runner image"
+          }
+
+          wslc version
+          wslc run --rm hello-world
+
+      - name: Run Linux container
+        shell: pwsh
+        run: |
+          wslc run --rm alpine:latest uname -a
