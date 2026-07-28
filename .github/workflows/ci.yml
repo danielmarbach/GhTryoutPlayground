@@ -20,11 +20,6 @@ jobs:
           Write-Host "Updated WSL:"
           wsl --version
 
-          $wslc = Get-Command wslc.exe -ErrorAction SilentlyContinue
-          if (-not $wslc) {
-            throw "wslc.exe is still unavailable after updating WSL"
-          }
-
           wslc version
 
       - name: Run Linux container
