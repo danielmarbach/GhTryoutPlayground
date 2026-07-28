@@ -1,0 +1,72 @@
+name: WSL Docker test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  wsl-docker:
+    runs-on: windows-2025
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ubuntu in WSL
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          wsl.exe --set-default-version 2
+          wsl.exe --install Ubuntu-24.04 --web-download --no-launch
+
+          Write-Host "Installed distributions:"
+          wsl.exe --list --verbose
+
+      - name: Install Docker inside WSL
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          wsl.exe --distribution Ubuntu-24.04 --user root -- `
+            bash -euxo pipefail -c @'
+              export DEBIAN_FRONTEND=noninteractive
+
+              apt-get update
+              apt-get install --yes docker.io
+            '@
+
+      - name: Start Docker and run a container
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          wsl.exe --distribution Ubuntu-24.04 --user root -- `
+            bash -euxo pipefail -c @'
+              rm -f /var/run/docker.pid
+
+              nohup dockerd \
+                --host=unix:///var/run/docker.sock \
+                >/tmp/dockerd.log 2>&1 &
+
+              for attempt in $(seq 1 60); do
+                if docker info >/dev/null 2>&1; then
+                  break
+                fi
+
+                if ! kill -0 $! 2>/dev/null; then
+                  echo "dockerd exited unexpectedly"
+                  cat /tmp/dockerd.log
+                  exit 1
+                fi
+
+                if [ "$attempt" -eq 60 ]; then
+                  echo "Timed out waiting for dockerd"
+                  cat /tmp/dockerd.log
+                  exit 1
+                fi
+
+                sleep 1
+              done
+
+              docker version
+              docker run --rm alpine:latest uname -a
+            '@
