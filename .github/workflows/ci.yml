@@ -11,20 +11,21 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: Inspect WSL container support
+      - name: Update WSL to preview
         shell: pwsh
         run: |
+          wsl --shutdown
+          wsl --update --pre-release
+
+          Write-Host "Updated WSL:"
           wsl --version
-          wsl --status
 
-          Get-Command wslc -ErrorAction SilentlyContinue
-
-          if (-not (Get-Command wslc -ErrorAction SilentlyContinue)) {
-            throw "wslc.exe is not available in this runner image"
+          $wslc = Get-Command wslc.exe -ErrorAction SilentlyContinue
+          if (-not $wslc) {
+            throw "wslc.exe is still unavailable after updating WSL"
           }
 
           wslc version
-          wslc run --rm hello-world
 
       - name: Run Linux container
         shell: pwsh
