@@ -26,13 +26,14 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          wsl.exe --distribution Ubuntu-24.04 --user root -- `
-            bash -euxo pipefail -c @'
-              export DEBIAN_FRONTEND=noninteractive
+          wsl.exe `
+            --distribution Ubuntu-24.04 `
+            --user root `
+            -- bash -c "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --yes docker.io"
 
-              apt-get update
-              apt-get install --yes docker.io
-            '@
+          if ($LASTEXITCODE -ne 0) {
+            throw "Docker installation failed"
+          }
 
       - name: Start Docker and run a container
         shell: pwsh
