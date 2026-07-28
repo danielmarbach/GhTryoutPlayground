@@ -15,7 +15,6 @@ jobs:
 
           wsl.exe --set-default-version 2
           wsl.exe --install Ubuntu-24.04 --web-download --no-launch
-
           wsl.exe --list --verbose
 
       - name: Install Docker inside WSL
@@ -37,35 +36,29 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          $bashScript = @(
-            'set -euxo pipefail'
-            'rm -f /var/run/docker.pid'
-            'nohup dockerd --host=unix:///var/run/docker.sock >/tmp/dockerd.log 2>&1 &'
-            'dockerd_pid=$!'
-            'for attempt in $(seq 1 60); do'
-            '  if docker info >/dev/null 2>&1; then'
-            '    break'
-            '  fi'
-            '  if ! kill -0 "$dockerd_pid" 2>/dev/null; then'
-            '    echo "dockerd exited unexpectedly"'
-            '    cat /tmp/dockerd.log'
-            '    exit 1'
-            '  fi'
-            '  if [ "$attempt" -eq 60 ]; then'
-            '    echo "Timed out waiting for dockerd"'
-            '    cat /tmp/dockerd.log'
-            '    exit 1'
-            '  fi'
-            '  sleep 1'
-            'done'
-            'docker version'
-            'docker run --rm alpine:latest uname -a'
-          ) -join "`n"
-
-          $bashScript | wsl.exe `
+          wsl.exe `
             --distribution Ubuntu-24.04 `
             --user root `
-            -- bash
+            -- systemctl start docker
+
+          if ($LASTEXITCODE -ne 0) {
+            wsl.exe `
+              --distribution Ubuntu-24.04 `
+              --user root `
+              -- systemctl status docker --no-pager
+
+            throw "Docker service failed to start"
+          }
+
+          wsl.exe `
+            --distribution Ubuntu-24.04 `
+            --user root `
+            -- docker info
+
+          wsl.exe `
+            --distribution Ubuntu-24.04 `
+            --user root `
+            -- docker run --rm alpine:latest uname -a
 
           if ($LASTEXITCODE -ne 0) {
             throw "Container execution failed with exit code $LASTEXITCODE"
